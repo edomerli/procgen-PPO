@@ -16,7 +16,7 @@ import random
 
 import wandb
 
-import setup
+import utils
 from ppo import PPO
 from data import TransitionsDataset
 from utils import seed_everything
@@ -83,7 +83,7 @@ def play(env, policy, num_steps, config):
         truncated = truncated or t == num_steps - 1
 
         # update step count
-        setup.global_step += 1
+        utils.global_step += 1
 
         # collect transition info in trajectory
         trajectory['values'].append(value)
@@ -133,7 +133,7 @@ def play(env, policy, num_steps, config):
             if terminated:
                 wandb.log({"play/episodic_reward": sum(trajectory['rewards']), 
                         "play/episode_length": len(trajectory['states'])-1,
-                        "play/step": setup.global_step})
+                        "play/step": utils.global_step})
             
             if t < num_steps - 1:
                 # reset env and trajectory
@@ -156,8 +156,6 @@ def play(env, policy, num_steps, config):
 
 
 def train(policy, policy_old, train_dataloader, optimizer_policy, optimizer_value, config, scheduler_policy=None, scheduler_value=None):
-
-    setup.global_batch
 
     policy.train()
     policy_old.eval()
@@ -217,15 +215,15 @@ def train(policy, policy_old, train_dataloader, optimizer_policy, optimizer_valu
             optimizer_value.step()
             optimizer_value.zero_grad()
 
-            if setup.global_batch % config.log_frequency == 0:
+            if utils.global_batch % config.log_frequency == 0:
                 wandb.log({"train/loss_pi": loss_pi, 
                            "train/loss_v": loss_value,
                            "train/entropy": loss_entropy,
                            "train/lr_policy": optimizer_policy.param_groups[0]['lr'],
                            "train/lr_value": optimizer_value.param_groups[0]['lr'],
-                           "train/batch": setup.global_batch})
+                           "train/batch": utils.global_batch})
             
-            setup.global_batch += 1
+            utils.global_batch += 1
         
         if scheduler_policy is not None:
             scheduler_policy.step()
@@ -235,10 +233,58 @@ def train(policy, policy_old, train_dataloader, optimizer_policy, optimizer_valu
         with torch.no_grad():
             # KL divergence between old and new policy for early stopping
             kl_div = torch.distributions.kl.kl_divergence(dists, old_dists).mean().item()
-            wandb.log({"train/kl_div": kl_div, "train/batch": setup.global_batch})
+            wandb.log({"train/kl_div": kl_div, "train/batch": utils.global_batch})
             if kl_div > config.kl_limit:
                 print(f"Early stopping at epoch {epoch} due to KL divergence {round(kl_div, 4)} > {config.kl_limit}")
                 break
+
+def test(env, policy, num_steps, config):
+    obs, _ = env.reset()
+
+    # stack frames together to introduce temporal information
+    state_deque = deque()
+    for _ in range(config.stack_size):
+        state_deque.append(state_processing(obs))
+    state = torch.concatenate(list(state_deque), axis=0)
+
+    policy.eval()
+    assert not policy.policy_net.training and not policy.value_net.training, "Policy should be in evaluation mode here"
+    
+    episode_steps = 0
+    cum_reward = 0
+
+    for step in tqdm(range(num_steps)):
+
+        state = state.unsqueeze(0).to(device)
+        action, _ = policy.act(state)
+
+        next_obs, reward, terminated, truncated, info = env.step(action)
+
+        episode_steps += 1
+        cum_reward += reward
+
+        # udpate state to become next state using the new observation
+        state_deque.popleft()
+        state_deque.append(state_processing(next_obs))
+        state = torch.concatenate(list(state_deque), axis=0)
+
+        if terminated or truncated:
+            wandb.log({"test/episodic_reward": cum_reward, 
+                    "test/episode_length": episode_steps,
+                    "test/step": step})
+            
+            episode_steps = 0
+            cum_reward = 0
+                
+            if step < num_steps - 1:
+                # reset env and initial obs
+                obs, _ = env.reset()
+
+                state_deque = deque()
+                for _ in range(config.stack_size):
+                    state_deque.append(state_processing(obs))
+                state = torch.concatenate(list(state_deque), axis=0)
+
 
 ### CONFIGURATION ###
 TOT_TIMESTEPS = int(2**18)  #int(2**20)  # approx 1M
@@ -290,6 +336,7 @@ config = wandb.config
 
 wandb.define_metric("play/step")
 wandb.define_metric("train/batch")
+wandb.define_metric("test/step")
 
 wandb.define_metric("play/episodic_reward", step_metric="play/step")
 wandb.define_metric("play/episode_length", step_metric="play/step")
@@ -298,6 +345,8 @@ wandb.define_metric("train/loss_v", step_metric="train/batch")
 wandb.define_metric("train/entropy", step_metric="train/batch")
 wandb.define_metric("train/lr_policy", step_metric="train/batch")
 wandb.define_metric("train/lr_value", step_metric="train/batch")
+wandb.define_metric("test/episodic_reward", step_metric="test/step")
+wandb.define_metric("test/episode_length", step_metric="test/step")
 
 
 ### CREATE ENVIRONMENT ###
@@ -330,11 +379,9 @@ policy.to(device)
 policy_old.to(device)
 
 optimizer_policy = torch.optim.Adam(policy.policy_net.parameters(), lr=config.lr_policy_network)
-# scheduler_policy = torch.optim.lr_scheduler.StepLR(optimizer_policy, step_size=600, gamma=0.9)
 scheduler_policy = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_policy, T_max=config.num_iterations*config.epochs, eta_min=1e-6)
 
 optimizer_value = torch.optim.Adam(policy.value_net.parameters(), lr=config.lr_value_network)
-# scheduler_value = torch.optim.lr_scheduler.StepLR(optimizer_value, step_size=600, gamma=0.9)
 scheduler_value = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_value, T_max=config.num_iterations*config.epochs, eta_min=1e-6)
 
 state_processing = transforms.Compose([transforms.ToPILImage(), transforms.ToTensor()])
@@ -363,6 +410,20 @@ for iteration in range(NUM_ITERATIONS):
     del policy_old
     policy_old = copy.deepcopy(policy)  # TODO: just copy the parameters? It should work like this tho
     policy_old.to(device)
+
+### TEST LOOP ###
+env_test = gym.make(
+    f"procgen:procgen-{config.game}-v0",
+    num_levels=0,
+    start_level=config.seed,
+    distribution_mode=config.difficulty,
+    use_backgrounds=config.backgrounds,
+    render_mode='rgb_array',
+    apply_api_compatibility=True,
+    rand_seed=config.seed
+)
+
+test(env_test, policy, TOT_TIMESTEPS, config)
 
 
 wandb.finish()
