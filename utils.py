@@ -11,6 +11,3 @@ def seed_everything(seed):
     torch.backends.cudnn.deterministic = True
     torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.benchmark = False
-
-    # env.action_space.seed(seed)
-    # env.observation_space.seed(seed)

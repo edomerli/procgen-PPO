@@ -16,16 +16,14 @@ import random
 
 import wandb
 
+import setup
 from ppo import PPO
 from data import TransitionsDataset
 from utils import seed_everything
+from recorder_wrapper import RecorderWrapper
 
 
 # TODO: riordina il codice in più file )main è molto lungo!), magari alla fine dopo aver testato tutto su kaggle!
-
-global_batch = 0
-global_episode = 0
-global_step = 0
 
 
 def compute_advantages(values, rewards, gamma, lambda_):
@@ -40,23 +38,29 @@ def compute_advantages(values, rewards, gamma, lambda_):
     advantages = advantages[::-1]
     return advantages
 
-def compute_value_targets(advantages, values):
+def compute_value_targets(advantages, values, rewards, config):
     value_targets = []
-    for t in range(len(advantages)):
-        value_targets.append(advantages[t] + values[t])
+    if config.v_target == "TD-lambda":
+        for t in range(len(advantages)):
+            value_targets.append(advantages[t] + values[t])
+    elif config.v_target == "MC":
+        value_targets.append(rewards[-1])
+        for t in range(len(rewards)-2, -1, -1):
+            value_targets.append(rewards[t] + config.gamma * value_targets[-1])
+        value_targets = value_targets[::-1]
+    else:
+        raise ValueError(f"Unknown value target type {config.v_target}, choose between 'TD-lambda' and 'MC'.")
     return value_targets
 
 def play(env, policy, num_steps, config):
     transitions = []
-    global global_episode
-    global global_step
 
     obs, _ = env.reset()
 
     # stack frames together to introduce temporal information
     state_deque = deque()
     for _ in range(config.stack_size):
-        state_deque.append(data_processing(obs))
+        state_deque.append(state_processing(obs))
 
     state = torch.concatenate(list(state_deque), axis=0)
 
@@ -79,7 +83,7 @@ def play(env, policy, num_steps, config):
         truncated = truncated or t == num_steps - 1
 
         # update step count
-        global_step += 1
+        setup.global_step += 1
 
         # collect transition info in trajectory
         trajectory['values'].append(value)
@@ -89,7 +93,7 @@ def play(env, policy, num_steps, config):
 
         # udpate state to become next state using the new observation
         state_deque.popleft()
-        state_deque.append(data_processing(next_obs))
+        state_deque.append(state_processing(next_obs))
         state = torch.concatenate(list(state_deque), axis=0)
 
         trajectory['states'].append(state)
@@ -98,7 +102,6 @@ def play(env, policy, num_steps, config):
         if terminated or truncated:
             # see terminated vs truncated API at https://farama.org/Gymnasium-Terminated-Truncated-Step-API
             if terminated:
-                # TODO: check that the final frame is not reset but it's when he reaches the coin
                 # final value is 0 if the episode terminated, i.e. reached a final state
                 trajectory['values'].append(0)
             else:
@@ -111,7 +114,7 @@ def play(env, policy, num_steps, config):
             assert len(trajectory['states']) == len(trajectory['actions']) + 1 , "Trajectory must have one more state than actions."
             advantages = compute_advantages(trajectory['values'], trajectory['rewards'], config.gamma, config.lambda_)
 
-            value_targets = compute_value_targets(advantages, trajectory['values'])
+            value_targets = compute_value_targets(advantages, trajectory['values'], trajectory['rewards'], config)
 
             if config.normalize_v_targets:
                 policy.update_v_target_stats(np.array(value_targets))
@@ -130,35 +133,31 @@ def play(env, policy, num_steps, config):
             if terminated:
                 wandb.log({"play/episodic_reward": sum(trajectory['rewards']), 
                         "play/episode_length": len(trajectory['states'])-1,
-                        "play/step": global_step})
-                global_episode += 1
-
-            # video logging
-            if config.log_video and global_episode % config.video_log_frequency == 0:
-                pass    # TODO: implement
+                        "play/step": setup.global_step})
             
-            # reset env and trajectory
-            obs, _ = env.reset()
+            if t < num_steps - 1:
+                # reset env and trajectory
+                obs, _ = env.reset()
 
-            state_deque = deque()
-            for _ in range(config.stack_size):
-                state_deque.append(data_processing(obs))
+                state_deque = deque()
+                for _ in range(config.stack_size):
+                    state_deque.append(state_processing(obs))
 
-            state = torch.concatenate(list(state_deque), axis=0)
+                state = torch.concatenate(list(state_deque), axis=0)
 
-            trajectory = {
-                'states': [state],
-                'actions': [],
-                'rewards': [],
-                'values': [],
-            }
+                trajectory = {
+                    'states': [state],
+                    'actions': [],
+                    'rewards': [],
+                    'values': [],
+                }
 
     return transitions
 
 
 def train(policy, policy_old, train_dataloader, optimizer_policy, optimizer_value, config, scheduler_policy=None, scheduler_value=None):
 
-    global global_batch
+    setup.global_batch
 
     policy.train()
     policy_old.eval()
@@ -218,23 +217,31 @@ def train(policy, policy_old, train_dataloader, optimizer_policy, optimizer_valu
             optimizer_value.step()
             optimizer_value.zero_grad()
 
-            if global_batch % config.log_frequency == 0:
-                wandb.log({"loss/loss_pi": loss_pi, 
-                           "loss/loss_v": loss_value,
-                           "loss/entropy": loss_entropy,
-                           "loss/lr_policy": optimizer_policy.param_groups[0]['lr'],
-                           "loss/lr_value": optimizer_value.param_groups[0]['lr'],
-                           "loss/batch": global_batch})
+            if setup.global_batch % config.log_frequency == 0:
+                wandb.log({"train/loss_pi": loss_pi, 
+                           "train/loss_v": loss_value,
+                           "train/entropy": loss_entropy,
+                           "train/lr_policy": optimizer_policy.param_groups[0]['lr'],
+                           "train/lr_value": optimizer_value.param_groups[0]['lr'],
+                           "train/batch": setup.global_batch})
             
-            global_batch += 1
+            setup.global_batch += 1
         
         if scheduler_policy is not None:
             scheduler_policy.step()
         if scheduler_value is not None:
             scheduler_value.step()
 
+        with torch.no_grad():
+            # KL divergence between old and new policy for early stopping
+            kl_div = torch.distributions.kl.kl_divergence(dists, old_dists).mean().item()
+            wandb.log({"train/kl_div": kl_div, "train/batch": setup.global_batch})
+            if kl_div > config.kl_limit:
+                print(f"Early stopping at epoch {epoch} due to KL divergence {round(kl_div, 4)} > {config.kl_limit}")
+                break
+
 ### CONFIGURATION ###
-TOT_TIMESTEPS = int(2**17)  #int(2**20)  # approx 1M
+TOT_TIMESTEPS = int(2**18)  #int(2**20)  # approx 1M
 ITER_TIMESTEPS = 1024
 NUM_ITERATIONS = TOT_TIMESTEPS // ITER_TIMESTEPS
 CONFIG = {
@@ -259,18 +266,20 @@ CONFIG = {
     "batch_size": 64,
     "lr_policy_network": 5e-4,
     "lr_value_network": 5e-4,
+    "kl_limit": 0.015,
 
     # PPO params
     "gamma": 0.999,
     "lambda_": 0.95,
     "eps_clip": 0.2,
     "entropy_bonus": 0.01,
+    "v_target": "TD-lambda",  # "TD-lambda" (for advantage + value) or "MC" (for cumulative reward)
     "normalize_v_targets": True,
 
     # Logging
     "log_frequency": 5,
-    "log_video": False,
-    "video_log_frequency": 10,
+    "log_video": True,
+    "episode_video_frequency": 5,
 }
 
 
@@ -280,15 +289,15 @@ wandb.init(project="ppo-procgen", name=f"{CONFIG['game']}_{CONFIG['num_levels']}
 config = wandb.config
 
 wandb.define_metric("play/step")
-wandb.define_metric("loss/batch")
+wandb.define_metric("train/batch")
 
 wandb.define_metric("play/episodic_reward", step_metric="play/step")
 wandb.define_metric("play/episode_length", step_metric="play/step")
-wandb.define_metric("loss/loss_pi", step_metric="loss/batch")
-wandb.define_metric("loss/loss_v", step_metric="loss/batch")
-wandb.define_metric("loss/entropy", step_metric="loss/batch")
-wandb.define_metric("loss/lr_policy", step_metric="loss/batch")
-wandb.define_metric("loss/lr_value", step_metric="loss/batch")
+wandb.define_metric("train/loss_pi", step_metric="train/batch")
+wandb.define_metric("train/loss_v", step_metric="train/batch")
+wandb.define_metric("train/entropy", step_metric="train/batch")
+wandb.define_metric("train/lr_policy", step_metric="train/batch")
+wandb.define_metric("train/lr_value", step_metric="train/batch")
 
 
 ### CREATE ENVIRONMENT ###
@@ -303,7 +312,10 @@ env = gym.make(
     rand_seed=config.seed
 )
 
-seed_everything(config.seed)#, env)
+if config.log_video:
+    env = RecorderWrapper(env, config.episode_video_frequency)
+
+seed_everything(config.seed)
 
 ### CREATE PPO AGENTS ###
 policy = PPO(env, config)
@@ -318,12 +330,14 @@ policy.to(device)
 policy_old.to(device)
 
 optimizer_policy = torch.optim.Adam(policy.policy_net.parameters(), lr=config.lr_policy_network)
-scheduler_policy = torch.optim.lr_scheduler.StepLR(optimizer_policy, step_size=600, gamma=0.9)
+# scheduler_policy = torch.optim.lr_scheduler.StepLR(optimizer_policy, step_size=600, gamma=0.9)
+scheduler_policy = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_policy, T_max=config.num_iterations*config.epochs, eta_min=1e-6)
 
 optimizer_value = torch.optim.Adam(policy.value_net.parameters(), lr=config.lr_value_network)
-scheduler_value = torch.optim.lr_scheduler.StepLR(optimizer_value, step_size=600, gamma=0.9)
+# scheduler_value = torch.optim.lr_scheduler.StepLR(optimizer_value, step_size=600, gamma=0.9)
+scheduler_value = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_value, T_max=config.num_iterations*config.epochs, eta_min=1e-6)
 
-data_processing = transforms.Compose([transforms.ToPILImage(), transforms.ToTensor()])
+state_processing = transforms.Compose([transforms.ToPILImage(), transforms.ToTensor()])
 
 
 ### MAIN LOOP ###
