@@ -29,7 +29,6 @@ class ImpalaNetwork(torch.nn.Module):
         super(ImpalaNetwork, self).__init__()
         
         self.num_actions = num_actions
-        # TODO: try flag to add batchnorm? If so, put it always after Conv2d and before ReLU (or after ReLU, check IPCV)
 
         self.stems = nn.ModuleList()
         self.res_blocks1 = nn.ModuleList()
@@ -58,32 +57,12 @@ class ImpalaNetwork(torch.nn.Module):
 
             in_channels = out_channels
 
-        # TODO: do it without magic number 1568 = 7 * 7 * 32
-        self.fc = torch.nn.Linear(1568, out_features=256)
+        self.fc = torch.nn.Linear(32 * 7 * 7, out_features=256)
 
         self.out = torch.nn.Linear(256, num_actions)
 
         
         if num_actions > 1:
-            # TODO: remove!
-            # # policy network initialization
-            # for stem, res_block1, res_block2 in zip(self.stems, self.res_blocks1, self.res_blocks2):
-            #     # stem initialization
-            #     nn.init.orthogonal_(stem[0].weight, gain=np.sqrt(2))
-            #     nn.init.constant_(stem[0].bias, 0)
-
-            #     # res_block1 initialization
-            #     for layer in res_block1:
-            #         if isinstance(layer, ConvBlock):
-            #             nn.init.orthogonal_(layer.layer[2].weight, gain=np.sqrt(2))
-            #             nn.init.constant_(layer.layer[2].bias, 0)
-
-            #     # res_block2 initialization
-            #     for layer in res_block2:
-            #         if isinstance(layer, ConvBlock):
-            #             nn.init.orthogonal_(layer.layer[2].weight, gain=np.sqrt(2))
-            #             nn.init.constant_(layer.layer[2].bias, 0)
-
             # policy network initialization
             nn.init.orthogonal_(self.fc.weight, gain=0.01)
             nn.init.constant_(self.fc.bias, 0)
@@ -92,7 +71,6 @@ class ImpalaNetwork(torch.nn.Module):
             nn.init.orthogonal_(self.out.weight, gain=1)
             nn.init.constant_(self.out.bias, 0)
 
-        # TODO: convert all network to double in order to avoid softmax <0 / inf / nan problems!
 
 
     def forward(self, x):
@@ -109,7 +87,6 @@ class ImpalaNetwork(torch.nn.Module):
 
         if self.num_actions > 1:
             logits = self.out(x)
-            # TODO: clip the logits between like -20 and 20 to avoid overflow in LogSumExp of Categorical dist!
             output = torch.distributions.Categorical(logits=logits)
         else:
             output = self.out(x).squeeze()

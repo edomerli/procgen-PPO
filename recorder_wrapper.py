@@ -4,7 +4,7 @@ from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 import wandb
 import numpy as np
 
-import setup
+import utils
 
 class RecorderWrapper(gym.Wrapper):
     def __init__(self, env, episode_frequency_rec):
@@ -39,7 +39,7 @@ class RecorderWrapper(gym.Wrapper):
         return obs, reward, terminated, truncated, info
     
     def save_video(self):
-        wandb.log({"video": wandb.Video(np.array(self.frames), caption=f"step: {setup.global_step} - episode: {self.episode_counter}", fps=30, format="mp4")})
+        wandb.log({"video": wandb.Video(np.array(self.frames), caption=f"step: {utils.global_step} - episode: {self.episode_counter}", fps=30, format="mp4")})
 
     def close(self):
         super().close()
