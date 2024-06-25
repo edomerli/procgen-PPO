@@ -120,6 +120,7 @@ play_and_train(env, policy, policy_old, optimizer_policy, optimizer_value, devic
 if not os.path.exists("models"):
     os.makedirs("models")
 
+print("Saving model to wandb...")
 save_path = f"models/{config.game}_{config.difficulty}.pt"
 torch.save(policy.state_dict(), save_path)
 # use policy.load_state_dict(torch.load(PATH)) to load the model
@@ -127,6 +128,7 @@ torch.save(policy.state_dict(), save_path)
 artifact = wandb.Artifact(f"model_{config.game}_{config.difficulty}", type='model')
 artifact.add_file(save_path)
 wandb.log_artifact(artifact)
+print("Saved successfully!")
 
 # delete file
 os.remove(save_path)
@@ -144,6 +146,7 @@ env_test = gym.make(
     rand_seed=config.seed
 )
 
+print("Beginning test phase...")
 test(env_test, policy, device, config)
 
 
