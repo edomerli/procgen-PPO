@@ -108,6 +108,7 @@ class PPO:
             self.value_std = 1
             self.values_count = 0
 
+    # act(), value() and act_and_v() are used during play, hence a single value (.item()) is returned
     def act(self, state):
         dist = self.policy_net(state)
         action = dist.sample()
@@ -129,12 +130,13 @@ class PPO:
 
         return action, value
     
+    # actions_dist() and actions_dist_and_v() are used during training, hence the full distributions and values are returned
     def actions_dist(self, state):
         return self.policy_net(state)
     
     def actions_dist_and_v(self, state):
         dist = self.policy_net(state)
-        value = self.value(state)
+        value = self.value_net(state)
 
         return dist, value
       
