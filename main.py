@@ -14,7 +14,7 @@ from play import play_and_train, test
 # argparse missing since will train on kaggle/colab most probably
 
 ### CONFIGURATION ###
-TOT_TIMESTEPS = int(2**18)  #int(2**20)  # approx 1M
+TOT_TIMESTEPS = int(2**20)  # approx 1M
 ITER_TIMESTEPS = 1024
 NUM_ITERATIONS = TOT_TIMESTEPS // ITER_TIMESTEPS
 CONFIG = {
@@ -120,13 +120,16 @@ play_and_train(env, policy, policy_old, optimizer_policy, optimizer_value, devic
 if not os.path.exists("models"):
     os.makedirs("models")
 
-save_path = f"models/{config.game}_{config.num_levels}_{config.difficulty}.pt"
-torch.save(policy.state_dict(), f"models/{config.game}_{config.num_levels}_{config.difficulty}.pt")
+save_path = f"models/{config.game}_{config.difficulty}.pt"
+torch.save(policy.state_dict(), save_path)
 # use policy.load_state_dict(torch.load(PATH)) to load the model
 # upload to wandb
-artifact = wandb.Artifact(f"model_{config.game}_{config.num_levels}_{config.difficulty}", type='model')
+artifact = wandb.Artifact(f"model_{config.game}_{config.difficulty}", type='model')
 artifact.add_file(save_path)
 wandb.log_artifact(artifact)
+
+# delete file
+os.remove(save_path)
 
 
 ### TEST PHASE ###
