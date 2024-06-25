@@ -1,6 +1,4 @@
 import gym
-import pathlib
-from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 import wandb
 import numpy as np
 

@@ -12,5 +12,4 @@ def seed_everything(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
-    torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.benchmark = False

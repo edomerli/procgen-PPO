@@ -1,24 +1,11 @@
 import gym 
-import copy
 import gym.wrappers
-import numpy as np
-import time
-from tqdm import tqdm
-from procgen import ProcgenGym3Env
-from collections import deque
+import copy
 
 import torch
-from torch.utils.data import DataLoader
-import torchvision.transforms as transforms
-
-from PIL import Image
-import random
-
 import wandb
 
-import utils
 from ppo import PPO
-from data import TransitionsDataset
 from utils import seed_everything
 from recorder_wrapper import RecorderWrapper
 from play import play_and_train, test

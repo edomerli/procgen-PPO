@@ -6,9 +6,6 @@ import wandb
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 import copy
-from PIL import Image
-
-
 
 import utils
 from train import train
