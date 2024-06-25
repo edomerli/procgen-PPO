@@ -6,6 +6,8 @@ import wandb
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 import copy
+from PIL import Image
+
 
 
 import utils
@@ -41,13 +43,16 @@ def compute_value_targets(advantages, values, rewards, config):
     return value_targets
 
 
-def play_and_train(env, policy, policy_old, optimizer_policy, optimizer_value, device, config, **kwargs):    
+def play_and_train(env, policy, policy_old, optimizer_policy, optimizer_value, device, config, **kwargs):  
+
+    # obs, _ = env.reset()   # TODO: aggiungi solo se metti step sotto invece di reset
+
     for iteration in range(config.num_iterations):
         print(f"===============Iteration {iteration+1}===============")
 
         transitions = []
 
-        obs, _ = env.reset()
+        obs, _ = env.reset()    # TODO: prova a mettere env.step qui
 
         # stack frames together to introduce temporal information
         state_deque = deque()
@@ -65,14 +70,14 @@ def play_and_train(env, policy, policy_old, optimizer_policy, optimizer_value, d
 
         policy.eval()
 
-        for t in tqdm(range(config.iteration_timesteps)):
+        for step in tqdm(range(config.iteration_timesteps)):
             assert not policy.policy_net.training and not policy.value_net.training, "Policy should be in evaluation mode here"
 
             state = state.unsqueeze(0).to(device)
             action, value = policy.act(state)
 
             next_obs, reward, terminated, truncated, info = env.step(action)
-            truncated = truncated or t == config.iteration_timesteps - 1
+            truncated = truncated or step == config.iteration_timesteps - 1
 
             # update step count
             utils.global_step += 1
@@ -127,7 +132,7 @@ def play_and_train(env, policy, policy_old, optimizer_policy, optimizer_value, d
                             "play/episode_length": len(trajectory['states'])-1,
                             "play/step": utils.global_step})
                 
-                if t < config.iteration_timesteps - 1:
+                if step < config.iteration_timesteps - 1:
                     # reset env and trajectory
                     obs, _ = env.reset()
 
