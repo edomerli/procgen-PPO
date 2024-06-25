@@ -61,7 +61,6 @@ config = wandb.config
 
 wandb.define_metric("play/step")
 wandb.define_metric("train/batch")
-wandb.define_metric("test/step")
 
 wandb.define_metric("play/episodic_reward", step_metric="play/step")
 wandb.define_metric("play/episode_length", step_metric="play/step")
@@ -70,8 +69,8 @@ wandb.define_metric("train/loss_v", step_metric="train/batch")
 wandb.define_metric("train/entropy", step_metric="train/batch")
 wandb.define_metric("train/lr_policy", step_metric="train/batch")
 wandb.define_metric("train/lr_value", step_metric="train/batch")
-wandb.define_metric("test/episodic_reward", step_metric="test/step")
-wandb.define_metric("test/episode_length", step_metric="test/step")
+wandb.define_metric("test/episodic_reward", step_metric="play/step")
+wandb.define_metric("test/episode_length", step_metric="play/step")
 
 
 ### PLAY AND TRAIN PHASE ###
@@ -106,9 +105,11 @@ policy.to(device)
 policy_old.to(device)
 
 optimizer_policy = torch.optim.Adam(policy.policy_net.parameters(), lr=config.lr_policy_network)
+# scheduler_policy = torch.optim.lr_scheduler.OneCycleLR(optimizer_policy, max_lr=config.lr_policy_network, total_steps=config.num_iterations*config.epochs, pct_start=0.1)
 scheduler_policy = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_policy, T_max=config.num_iterations*config.epochs, eta_min=1e-6)
 
 optimizer_value = torch.optim.Adam(policy.value_net.parameters(), lr=config.lr_value_network)
+# scheduler_value = torch.optim.lr_scheduler.OneCycleLR(optimizer_value, max_lr=config.lr_value_network, total_steps=config.num_iterations*config.epochs, pct_start=0.1)
 scheduler_value = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_value, T_max=config.num_iterations*config.epochs, eta_min=1e-6)
 
 play_and_train(env, policy, policy_old, optimizer_policy, optimizer_value, device, config, scheduler_policy=scheduler_policy, scheduler_value=scheduler_value)

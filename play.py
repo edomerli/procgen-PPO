@@ -44,14 +44,12 @@ def compute_value_targets(advantages, values, rewards, config):
 
 def play_and_train(env, policy, policy_old, optimizer_policy, optimizer_value, device, config, **kwargs):  
 
-    # obs, _ = env.reset()   # TODO: aggiungi solo se metti step sotto invece di reset
-
     for iteration in range(config.num_iterations):
         print(f"===============Iteration {iteration+1}===============")
 
         transitions = []
 
-        obs, _ = env.reset()    # TODO: prova a mettere env.step qui
+        obs, _ = env.reset()
 
         # stack frames together to introduce temporal information
         state_deque = deque()
@@ -200,7 +198,7 @@ def test(env, policy, device, config):
         if terminated or truncated:
             wandb.log({"test/episodic_reward": cum_reward, 
                     "test/episode_length": episode_steps,
-                    "test/step": step})
+                    "play/step": step})
             
             episode_steps = 0
             cum_reward = 0
