@@ -14,6 +14,8 @@ from data import TransitionsDataset
 frame_to_tensor = transforms.Compose([transforms.ToPILImage(), transforms.ToTensor()])
 
 def compute_advantages(values, rewards, gamma, lambda_):
+    assert len(values) >= 2, "Values should have at least 2 elements."
+    assert len(values) == len(rewards) + 1, "Values and rewards should have the same length, with values having one more element."
     # GAE estimator
     deltas = np.array(rewards) + gamma * np.array(values[1:]) - np.array(values[:-1])
     advantages = [deltas[-1]] 
@@ -104,8 +106,6 @@ def play_and_train(env, policy, policy_old, optimizer_policy, optimizer_value, d
                     _, value = policy.act(state)
                     trajectory['values'].append(value)
                 
-                assert len(trajectory['states']) >= 2, "Trajectory must have at least 2 states to compute advantages."
-                assert len(trajectory['states']) == len(trajectory['actions']) + 1 , "Trajectory must have one more state than actions."
                 advantages = compute_advantages(trajectory['values'], trajectory['rewards'], config.gamma, config.lambda_)
 
                 value_targets = compute_value_targets(advantages, trajectory['values'], trajectory['rewards'], config)

@@ -95,7 +95,9 @@ seed_everything(config.seed)
 policy = PPO(env, config)
 policy_old = copy.deepcopy(policy)
 
-print(f"Model has {sum(p.numel() for p in policy.policy_net.parameters()) + sum(p.numel() for p in policy.value_net.parameters())} total parameters.")
+print(f"Policy network has {sum(p.numel() for p in policy.policy_net.parameters())} parameters.")
+print(f"Value network has {sum(p.numel() for p in policy.value_net.parameters())} parameters.")
+print(f"Total parameters: {sum(p.numel() for p in policy.policy_net.parameters()) + sum(p.numel() for p in policy.value_net.parameters())}.")
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(f"Using {device} device")
