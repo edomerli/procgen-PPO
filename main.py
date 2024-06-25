@@ -1,6 +1,7 @@
 import gym 
 import gym.wrappers
 import copy
+import os
 
 import torch
 import wandb
@@ -10,6 +11,7 @@ from utils import seed_everything
 from recorder_wrapper import RecorderWrapper
 from play import play_and_train, test
 
+# argparse missing since will train on kaggle/colab most probably
 
 ### CONFIGURATION ###
 TOT_TIMESTEPS = int(2**18)  #int(2**20)  # approx 1M
@@ -113,6 +115,18 @@ optimizer_value = torch.optim.Adam(policy.value_net.parameters(), lr=config.lr_v
 scheduler_value = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_value, T_max=config.num_iterations*config.epochs, eta_min=1e-6)
 
 play_and_train(env, policy, policy_old, optimizer_policy, optimizer_value, device, config, scheduler_policy=scheduler_policy, scheduler_value=scheduler_value)
+
+### SAVE MODEL ###
+if not os.path.exists("models"):
+    os.makedirs("models")
+
+save_path = f"models/{config.game}_{config.num_levels}_{config.difficulty}.pt"
+torch.save(policy.state_dict(), f"models/{config.game}_{config.num_levels}_{config.difficulty}.pt")
+# use policy.load_state_dict(torch.load(PATH)) to load the model
+# upload to wandb
+artifact = wandb.Artifact(f"model_{config.game}_{config.num_levels}_{config.difficulty}", type='model')
+artifact.add_file(save_path)
+wandb.log_artifact(artifact)
 
 
 ### TEST PHASE ###

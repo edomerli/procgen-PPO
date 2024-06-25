@@ -20,7 +20,7 @@ def train(policy, policy_old, train_dataloader, optimizer_policy, optimizer_valu
             value_targets = value_targets.to(device)
             
             dists, values = policy.actions_dist_and_v(states)
-            old_dists, _ = policy_old.actions_dist_and_v(states)
+            old_dists = policy_old.actions_dist(states)
 
             log_probs = dists.log_prob(actions)
             old_log_probs = old_dists.log_prob(actions)

@@ -71,7 +71,7 @@ def play_and_train(env, policy, policy_old, optimizer_policy, optimizer_value, d
             assert not policy.policy_net.training and not policy.value_net.training, "Policy should be in evaluation mode here"
 
             state = state.unsqueeze(0).to(device)
-            action, value = policy.act(state)
+            action, value = policy.act_and_v(state)
 
             next_obs, reward, terminated, truncated, info = env.step(action)
             truncated = truncated or step == config.iteration_timesteps - 1
@@ -101,7 +101,7 @@ def play_and_train(env, policy, policy_old, optimizer_policy, optimizer_value, d
                 else:
                     # bootstrap if the episode was truncated, i.e. didn't reach a final state
                     state = state.unsqueeze(0).to(device)
-                    _, value = policy.act(state)
+                    value = policy.value(state)
                     trajectory['values'].append(value)
                 
                 advantages = compute_advantages(trajectory['values'], trajectory['rewards'], config.gamma, config.lambda_)
@@ -183,7 +183,7 @@ def test(env, policy, device, config):
     for step in tqdm(range(config.tot_timesteps)):
 
         state = state.unsqueeze(0).to(device)
-        action, _ = policy.act(state)
+        action = policy.act(state)
 
         next_obs, reward, terminated, truncated, info = env.step(action)
 

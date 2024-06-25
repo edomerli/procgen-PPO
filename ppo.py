@@ -109,18 +109,32 @@ class PPO:
             self.values_count = 0
 
     def act(self, state):
-        dist, value = self.actions_dist_and_v(state)
+        dist = self.policy_net(state)
         action = dist.sample()
 
-        return action.item(), value.item()
+        return action.item()
     
-    def actions_dist_and_v(self, state):
-        dist = self.policy_net(state)
+    def value(self, state):
         value = self.value_net(state)
 
         if self.normalize_v_targets:
             # denormalize value
             value = value * max(self.value_std, 1e-6) + self.value_mean
+
+        return value.item()
+
+    def act_and_v(self, state):
+        action = self.act(state)
+        value = self.value(state)
+
+        return action, value
+    
+    def actions_dist(self, state):
+        return self.policy_net(state)
+    
+    def actions_dist_and_v(self, state):
+        dist = self.policy_net(state)
+        value = self.value(state)
 
         return dist, value
       
@@ -140,3 +154,9 @@ class PPO:
         self.value_mean = (self.value_mean * self.values_count + v_targets.mean() * len(v_targets)) / (self.values_count + len(v_targets) + 1e-6)
         self.value_std = (self.value_std * self.values_count + v_targets.std() * len(v_targets)) / (self.values_count + len(v_targets) + 1e-6)
         self.values_count += len(v_targets)
+
+    def state_dict(self):
+        return self.policy_net.state_dict()
+    
+    def load_state_dict(self, state_dict):
+        self.policy_net.load_state_dict(state_dict)
