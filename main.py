@@ -17,12 +17,13 @@ from play import play_and_train, test
 TOT_TIMESTEPS = int(2**20)  # approx 1M
 ITER_TIMESTEPS = 1024
 NUM_ITERATIONS = TOT_TIMESTEPS // ITER_TIMESTEPS
+DIFFICULTY = "easy"
 CONFIG = {
     # Game
     "game": "coinrun",
-    "num_levels": 200,
+    "num_levels": 200 if DIFFICULTY == "easy" else 500,
     "seed": 6,
-    "difficulty": "easy",
+    "difficulty": DIFFICULTY,
     "backgrounds": False,
     "stack_size": 4,
 
