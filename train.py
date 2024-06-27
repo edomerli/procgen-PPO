@@ -7,8 +7,8 @@ def train(policy, policy_old, train_dataloader, optimizer_policy, optimizer_valu
 
     policy.train()
     policy_old.eval()
-    assert policy_old.policy_net.training == False and policy_old.value_net.training == False, "Old policy should be in evaluation mode here"
-    assert policy.policy_net.training == True and policy.value_net.training == True, "Policy should be in training mode here"
+    assert not policy_old.policy_net.training and not policy_old.value_net.training, "Old policy should be in evaluation mode here"
+    assert policy.policy_net.training and policy.value_net.training, "Policy should be in training mode here"
     for epoch in tqdm(range(config.epochs)):
         for batch, (states, actions, advantages, value_targets) in enumerate(train_dataloader):
             # normalize advantages between 0 and 1

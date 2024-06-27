@@ -14,7 +14,7 @@ from play import play_and_train, test
 # argparse missing since will train on kaggle/colab most probably
 
 ### CONFIGURATION ###
-TOT_TIMESTEPS = int(2**20)  # approx 1M
+TOT_TIMESTEPS = int(2**12)  # approx 1M
 ITER_TIMESTEPS = 1024
 NUM_ITERATIONS = TOT_TIMESTEPS // ITER_TIMESTEPS
 DIFFICULTY = "hard"
@@ -76,8 +76,8 @@ wandb.define_metric("test/episodic_reward", step_metric="play/step")
 wandb.define_metric("test/episode_length", step_metric="play/step")
 
 
-### PLAY AND TRAIN PHASE ###
-env = gym.make(
+### CREATE ENVIRONMENTS ###
+env_train = gym.make(
     f"procgen:procgen-{config.game}-v0",
     num_levels=config.num_levels,
     start_level=config.seed,
@@ -89,12 +89,23 @@ env = gym.make(
 )
 
 if config.log_video:
-    env = RecorderWrapper(env, config.episode_video_frequency)
+    env_train = RecorderWrapper(env_train, config.episode_video_frequency)
+
+env_test = gym.make(
+    f"procgen:procgen-{config.game}-v0",
+    num_levels=0,
+    start_level=config.seed,
+    distribution_mode=config.difficulty,
+    use_backgrounds=config.backgrounds,
+    render_mode='rgb_array',
+    apply_api_compatibility=True,
+    rand_seed=config.seed
+)
 
 seed_everything(config.seed)
 
 ### CREATE PPO AGENTS AND OPTIMIZERS ###
-policy = PPO(env, config)
+policy = PPO(env_train, config)
 policy_old = copy.deepcopy(policy)
 
 print(f"Policy network has {sum(p.numel() for p in policy.policy_net.parameters())} parameters.")
@@ -115,40 +126,21 @@ optimizer_value = torch.optim.Adam(policy.value_net.parameters(), lr=config.lr_v
 # scheduler_value = torch.optim.lr_scheduler.OneCycleLR(optimizer_value, max_lr=config.lr_value_network, total_steps=config.num_iterations*config.epochs, pct_start=0.1)
 scheduler_value = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_value, T_max=config.num_iterations*config.epochs, eta_min=1e-6)
 
-play_and_train(env, policy, policy_old, optimizer_policy, optimizer_value, device, config, scheduler_policy=scheduler_policy, scheduler_value=scheduler_value)
+### MAIN ###
+play_and_train(env_train, env_test, policy, policy_old, optimizer_policy, optimizer_value, device, config, scheduler_policy=scheduler_policy, scheduler_value=scheduler_value)
 
 ### SAVE MODEL ###
 if not os.path.exists("models"):
     os.makedirs("models")
 
-print("Saving model to wandb...")
+print("Saving best model to wandb...")
 save_path = f"models/{config.game}_{config.difficulty}.pt"
 torch.save(policy.state_dict(), save_path)
-# use policy.load_state_dict(torch.load(PATH)) to load the model
 # upload to wandb
 artifact = wandb.Artifact(f"model_{config.game}_{config.difficulty}", type='model')
 artifact.add_file(save_path)
 wandb.log_artifact(artifact)
 print("Saved successfully!")
-
-# delete file
-os.remove(save_path)
-
-
-### TEST PHASE ###
-env_test = gym.make(
-    f"procgen:procgen-{config.game}-v0",
-    num_levels=0,
-    start_level=config.seed,
-    distribution_mode=config.difficulty,
-    use_backgrounds=config.backgrounds,
-    render_mode='rgb_array',
-    apply_api_compatibility=True,
-    rand_seed=config.seed
-)
-
-print("Beginning test phase...")
-test(env_test, policy, device, config)
 
 
 wandb.finish()

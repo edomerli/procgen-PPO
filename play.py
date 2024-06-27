@@ -42,10 +42,11 @@ def compute_value_targets(advantages, values, rewards, config):
     return value_targets
 
 
-def play_and_train(env, policy, policy_old, optimizer_policy, optimizer_value, device, config, **kwargs):  
+def play_and_train(env, env_test, policy, policy_old, optimizer_policy, optimizer_value, device, config, **kwargs):  
 
     for iteration in range(config.num_iterations):
         print(f"===============Iteration {iteration+1}===============")
+        print(f"Playing {config.iteration_timesteps} steps...")
 
         transitions = []
 
@@ -156,13 +157,17 @@ def play_and_train(env, policy, policy_old, optimizer_policy, optimizer_value, d
 
         print(f"Collected {len(transitions)} transitions, starting training...")
 
-        # update policy
+        ### TRAIN LOOP ###
         train(policy, policy_old, train_dataloader, optimizer_policy, optimizer_value, device, config, **kwargs)
         print("Training done!")
 
         del policy_old
         policy_old = copy.deepcopy(policy)
         policy_old.to(device)
+
+        ### TEST LOOP ###
+        print(f"Now testing policy...")
+        test(env_test, policy, device, config)
 
 
 def test(env, policy, device, config):
@@ -177,16 +182,18 @@ def test(env, policy, device, config):
     policy.eval()
     assert not policy.policy_net.training and not policy.value_net.training, "Policy should be in evaluation mode here"
     
+    utils.global_step -= config.iteration_timesteps
     episode_steps = 0
     cum_reward = 0
 
-    for step in tqdm(range(config.tot_timesteps)):
+    for step in tqdm(range(config.iteration_timesteps)):
 
         state = state.unsqueeze(0).to(device)
         action = policy.act(state)
 
         next_obs, reward, terminated, truncated, info = env.step(action)
 
+        utils.global_step += 1
         episode_steps += 1
         cum_reward += reward
 
@@ -198,12 +205,12 @@ def test(env, policy, device, config):
         if terminated or truncated:
             wandb.log({"test/episodic_reward": cum_reward, 
                     "test/episode_length": episode_steps,
-                    "play/step": step})
+                    "play/step": utils.global_step})
             
             episode_steps = 0
             cum_reward = 0
                 
-            if step < config.tot_timesteps - 1:
+            if step < config.iteration_timesteps - 1:
                 # reset env and initial obs
                 obs, _ = env.reset()
 
