@@ -9,7 +9,7 @@ import wandb
 from ppo import PPO
 from utils import seed_everything
 from recorder_wrapper import RecorderWrapper
-from play import play_and_train, test
+from play import play_and_train
 
 # argparse missing since will train on kaggle/colab most probably
 
