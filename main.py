@@ -14,7 +14,7 @@ from play import play_and_train, test
 # argparse missing since will train on kaggle/colab most probably
 
 ### CONFIGURATION ###
-TOT_TIMESTEPS = int(2**12)  # approx 1M
+TOT_TIMESTEPS = int(2**20)  # approx 1M
 ITER_TIMESTEPS = 1024
 NUM_ITERATIONS = TOT_TIMESTEPS // ITER_TIMESTEPS
 DIFFICULTY = "hard"
