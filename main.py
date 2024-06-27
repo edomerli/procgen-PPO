@@ -52,13 +52,13 @@ CONFIG = {
 
     # Logging
     "log_frequency": 5,
-    "log_video": True,
-    "episode_video_frequency": 5,
+    "log_video": False,
+    "episode_video_frequency": 100,
 }
 
 
 ### WANDB ###
-wandb.login()
+wandb.login(key="14a7d0e7554bbddd13ca1a8d45472f7a95e73ca4")
 wandb.init(project="ppo-procgen", name=f"{CONFIG['game']}_{CONFIG['num_levels']}_{CONFIG['difficulty']}", config=CONFIG)
 config = wandb.config
 
