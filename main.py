@@ -140,7 +140,7 @@ torch.save(policy.state_dict(), save_path)
 artifact = wandb.Artifact(f"model_{config.game}_{config.difficulty}", type='model')
 artifact.add_file(save_path)
 wandb.log_artifact(artifact)
-print("Saved successfully!")
+print(f"Saved successfully at {save_path}!")
 
 
 wandb.finish()
