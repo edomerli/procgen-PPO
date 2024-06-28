@@ -170,8 +170,8 @@ def play_and_train(env, env_test, policy, policy_old, optimizer_policy, optimize
         test(env_test, policy, device, config)
 
 
-def test(env, policy, device, config):
-    obs, _ = env.reset()
+def test(env_test, policy, device, config):
+    obs, _ = env_test.reset()
 
     # stack frames together to introduce temporal information
     state_deque = deque()
@@ -191,7 +191,7 @@ def test(env, policy, device, config):
         state = state.unsqueeze(0).to(device)
         action = policy.act(state)
 
-        next_obs, reward, terminated, truncated, info = env.step(action)
+        next_obs, reward, terminated, truncated, info = env_test.step(action)
 
         utils.global_step += 1
         episode_steps += 1
@@ -212,7 +212,7 @@ def test(env, policy, device, config):
                 
             if step < config.iteration_timesteps - 1:
                 # reset env and initial obs
-                obs, _ = env.reset()
+                obs, _ = env_test.reset()
 
                 state_deque = deque()
                 for _ in range(config.stack_size):
