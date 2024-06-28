@@ -16,6 +16,7 @@ supported_difficulties = ["easy", "hard"]
 parser = argparse.ArgumentParser("Script to launch the demo of a trained agent on a selected game and difficulty level")
 game_arg = parser.add_argument("--game", type=str, help=f"Game to play. Supported games are: {supported_games}")
 diff_arg = parser.add_argument("--difficulty", type=str, help=f"Difficulty level of the game. Possible choices are: {supported_difficulties}")
+parser.add_argument('--batch_norm', default=False, type=lambda x: (str(x).lower() == 'true'))
 
 args = parser.parse_args()
 
@@ -61,12 +62,15 @@ env = gym.make(
 
 # create the agent and load the model
 class Config:
-    def __init__(self):
+    def __init__(self, batch_norm):
         self.stack_size = 4
-        self.batch_norm = True
+        self.batch_norm = batch_norm
         self.normalize_v_targets = True
 
-config = Config()
+config = Config(args.batch_norm)
+print(config.batch_norm)
+print(args.batch_norm)
+exit()
 policy = PPO(env, config)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
