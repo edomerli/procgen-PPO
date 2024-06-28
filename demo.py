@@ -69,13 +69,12 @@ class Config:
 config = Config()
 policy = PPO(env, config)
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-policy.load_state_dict(torch.load(model_path, map_location=torch.device(device)))
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+policy.load_state_dict(torch.load(model_path, map_location=device))
 print("Model loaded successfully! Starting the game...")
 
 
 # play the game
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 frame_to_tensor = transforms.Compose([transforms.ToPILImage(), transforms.ToTensor()])
 
 obs = env.reset()
