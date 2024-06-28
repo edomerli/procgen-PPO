@@ -33,7 +33,7 @@ CONFIG = {
     "num_iterations": NUM_ITERATIONS,
 
     # Network architecture
-    "batch_norm": True,
+    "batch_norm": False,
 
     # Training params
     "epochs": 3,
