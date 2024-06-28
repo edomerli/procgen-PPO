@@ -16,7 +16,7 @@ supported_difficulties = ["easy", "hard"]
 parser = argparse.ArgumentParser("Script to launch the demo of a trained agent on a selected game and difficulty level")
 game_arg = parser.add_argument("--game", type=str, help=f"Game to play. Supported games are: {supported_games}")
 diff_arg = parser.add_argument("--difficulty", type=str, help=f"Difficulty level of the game. Possible choices are: {supported_difficulties}")
-parser.add_argument('--batch_norm', default=False, type=lambda x: (str(x).lower() == 'true'))
+parser.add_argument('--batch_norm', default=False, type=lambda x: (str(x).lower() == 'true'), help=f"Whether to use batch normalization in the network or not. Default is False.")
 
 args = parser.parse_args()
 
