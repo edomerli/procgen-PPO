@@ -68,9 +68,6 @@ class Config:
         self.normalize_v_targets = True
 
 config = Config(args.batch_norm)
-print(config.batch_norm)
-print(args.batch_norm)
-exit()
 policy = PPO(env, config)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
