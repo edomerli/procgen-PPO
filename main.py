@@ -58,7 +58,7 @@ CONFIG = {
 
 
 ### WANDB ###
-wandb.login(key="14a7d0e7554bbddd13ca1a8d45472f7a95e73ca4")
+wandb.login()
 wandb.init(project="ppo-procgen", name=f"{CONFIG['game']}_{CONFIG['num_levels']}_{CONFIG['difficulty']}", config=CONFIG)
 config = wandb.config
 
