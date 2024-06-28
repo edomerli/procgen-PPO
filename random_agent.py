@@ -42,7 +42,7 @@ _ = env.reset()
 total_cum_reward = 0
 num_episodes = 0
 
-while num_episodes < 200:
+while num_episodes < 1000:
 
     action = np.random.choice(env.action_space.n)
 
