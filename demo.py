@@ -8,7 +8,7 @@ import torchvision.transforms as transforms
 
 from ppo import PPO
 
-supported_games = ["coinrun"]   # TODO: add more games
+supported_games = ["coinrun", "bossfight"]   # TODO: add more games
 supported_difficulties = ["easy", "hard"]
 
 
@@ -17,6 +17,8 @@ parser = argparse.ArgumentParser("Script to launch the demo of a trained agent o
 game_arg = parser.add_argument("--game", type=str, help=f"Game to play. Supported games are: {supported_games}")
 diff_arg = parser.add_argument("--difficulty", type=str, help=f"Difficulty level of the game. Possible choices are: {supported_difficulties}")
 parser.add_argument('--batch_norm', default=False, type=lambda x: (str(x).lower() == 'true'), help=f"Whether to use batch normalization in the network or not. Default is False.")
+parser.add_argument('--norm_v_targets', default=False, type=lambda x: (str(x).lower() == 'true'), help=f"Whether to normalize the value targets. Default is False.")
+
 
 args = parser.parse_args()
 
@@ -62,12 +64,12 @@ env = gym.make(
 
 # create the agent and load the model
 class Config:
-    def __init__(self, batch_norm):
-        self.stack_size = 4
+    def __init__(self, batch_norm, normalize_v_targets):
+        self.stack_size = 2
         self.batch_norm = batch_norm
-        self.normalize_v_targets = True
+        self.normalize_v_targets = normalize_v_targets
 
-config = Config(args.batch_norm)
+config = Config(args.batch_norm, args.normalize_v_targets)
 policy = PPO(env, config)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from torchvision.ops import SqueezeExcitation
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, batch_norm):
@@ -31,7 +30,7 @@ class ImpalaNetwork(torch.nn.Module):
         self.res_blocks1 = nn.ModuleList()
         self.res_blocks2 = nn.ModuleList()
 
-        hidden_channels = [16, 32, 32]
+        hidden_channels = [32, 64, 64]
 
         for out_channels in hidden_channels:
 
@@ -45,20 +44,16 @@ class ImpalaNetwork(torch.nn.Module):
             self.res_blocks1.append(torch.nn.Sequential(
                 ConvBlock(in_channels=out_channels, out_channels=out_channels, kernel_size=3, stride=1, padding="same", batch_norm=batch_norm),
                 ConvBlock(in_channels=out_channels, out_channels=out_channels, kernel_size=3, stride=1, padding="same", batch_norm=batch_norm),
-                SqueezeExcitation(out_channels, 4)
             ))
 
             self.res_blocks2.append(torch.nn.Sequential(
                 ConvBlock(in_channels=out_channels, out_channels=out_channels, kernel_size=3, stride=1, padding="same", batch_norm=batch_norm),
                 ConvBlock(in_channels=out_channels, out_channels=out_channels, kernel_size=3, stride=1, padding="same", batch_norm=batch_norm),
-                SqueezeExcitation(out_channels, 4)
             ))
 
             in_channels = out_channels
 
-        self.global_avg_pool = torch.nn.AdaptiveAvgPool2d((1, 1))
-
-        self.fc = torch.nn.Linear(hidden_channels[-1], out_features=256)
+        self.fc = torch.nn.Linear(hidden_channels[-1] * 7 * 7, out_features=256)
 
         self.out = torch.nn.Linear(256, num_actions)
 
@@ -81,8 +76,6 @@ class ImpalaNetwork(torch.nn.Module):
             x = res_block2(x) + x
 
         x = nn.functional.relu(x)
-
-        x = self.global_avg_pool(x)
 
         x = torch.flatten(x, start_dim=1)
         x = self.fc(x)

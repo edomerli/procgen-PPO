@@ -14,7 +14,7 @@ from play import play_and_train
 # argparse missing since will train on kaggle/colab most probably
 
 ### CONFIGURATION ###
-TOT_TIMESTEPS = int(2**20)  # approx 1M
+TOT_TIMESTEPS = int(2**21)  # approx 2M
 ITER_TIMESTEPS = 1024
 NUM_ITERATIONS = TOT_TIMESTEPS // ITER_TIMESTEPS
 DIFFICULTY = "hard"
@@ -37,10 +37,10 @@ CONFIG = {
 
     # Training params
     "epochs": 3,
-    "batch_size": 64,
+    "batch_size": 128,
     "lr_policy_network": 5e-4,
     "lr_value_network": 5e-4,
-    "kl_limit": 0.015,
+    "kl_limit": 0.03,
 
     # PPO params
     "gamma": 0.999,
@@ -48,7 +48,7 @@ CONFIG = {
     "eps_clip": 0.2,
     "entropy_bonus": 0.01,
     "v_target": "TD-lambda",  # "TD-lambda" (for advantage + value) or "MC" (for cumulative reward)
-    "normalize_v_targets": True,
+    "normalize_v_targets": False,
 
     # Logging
     "log_frequency": 5,
@@ -119,11 +119,9 @@ policy.to(device)
 policy_old.to(device)
 
 optimizer_policy = torch.optim.Adam(policy.policy_net.parameters(), lr=config.lr_policy_network)
-# scheduler_policy = torch.optim.lr_scheduler.OneCycleLR(optimizer_policy, max_lr=config.lr_policy_network, total_steps=config.num_iterations*config.epochs, pct_start=0.1)
 scheduler_policy = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_policy, T_max=config.num_iterations*config.epochs, eta_min=1e-6)
 
 optimizer_value = torch.optim.Adam(policy.value_net.parameters(), lr=config.lr_value_network)
-# scheduler_value = torch.optim.lr_scheduler.OneCycleLR(optimizer_value, max_lr=config.lr_value_network, total_steps=config.num_iterations*config.epochs, pct_start=0.1)
 scheduler_value = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_value, T_max=config.num_iterations*config.epochs, eta_min=1e-6)
 
 ### MAIN ###
