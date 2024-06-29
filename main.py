@@ -25,7 +25,7 @@ CONFIG = {
     "seed": 6,
     "difficulty": DIFFICULTY,
     "backgrounds": False,
-    "stack_size": 4,
+    "stack_size": 2,
 
     # Timesteps and iterations
     "tot_timesteps": TOT_TIMESTEPS,
