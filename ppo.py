@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 
 class ConvBlock(nn.Module):
+    """IMPALA ConvBlock class. It's a sequence of Conv2d, ReLU and (optionally) BatchNorm2d layers."""
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, batch_norm):
         super(ConvBlock, self).__init__()
 
@@ -21,6 +22,10 @@ class ConvBlock(nn.Module):
         return self.layer(x)
 
 class ImpalaNetwork(torch.nn.Module):
+    """IMPALA network class. It's a sequence of 'stem' layers (Conv2d + MaxPool2d), residual blocks (two ConvBlocks each) and a fully connected head.
+    The output is a categorical distribution if num_actions > 1 (policy network instance), otherwise it's a single value (value network instance).
+    The final linear layer is initialized with orthogonal weights and zero bias to help initial exploration.
+    """
     def __init__(self, in_channels, num_actions, batch_norm):
         super(ImpalaNetwork, self).__init__()
         
@@ -90,6 +95,9 @@ class ImpalaNetwork(torch.nn.Module):
         return output
 
 class PPO:
+    """PPO agent class. 
+    It contains the policy and value networks, and the methods call them and get actions/value estimates.
+    """
     def __init__(self, env, config):
         self.policy_net = ImpalaNetwork(config.stack_size * 3, env.action_space.n, config.batch_norm)
         self.value_net = ImpalaNetwork(config.stack_size * 3, 1, config.batch_norm)
@@ -131,6 +139,10 @@ class PPO:
         dist = self.policy_net(state)
         value = self.value_net(state)
 
+        if self.normalize_v_targets:
+            # denormalize value
+            value = value * max(self.value_std, 1e-6) + self.value_mean
+
         return dist, value
       
     def to(self, device):
@@ -146,6 +158,7 @@ class PPO:
         self.value_net.train()
 
     def update_v_target_stats(self, v_targets):
+        """If normalize_v_targets is True, will be called to update the mean and std of value targets. This is used to normalize value targets during training."""
         self.value_mean = (self.value_mean * self.values_count + v_targets.mean() * len(v_targets)) / (self.values_count + len(v_targets) + 1e-6)
         self.value_std = (self.value_std * self.values_count + v_targets.std() * len(v_targets)) / (self.values_count + len(v_targets) + 1e-6)
         self.values_count += len(v_targets)
