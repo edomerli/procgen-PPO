@@ -51,7 +51,7 @@ CONFIG = {
     "normalize_v_targets": False,
 
     # Logging
-    "log_frequency": 5,
+    "log_frequency": 10,
     "log_video": False,
     "episode_video_frequency": 100,
 }
