@@ -79,7 +79,7 @@ def train(policy, policy_old, train_dataloader, optimizer_policy, optimizer_valu
         with torch.no_grad():
             # Early stopping: KL divergence between old and new policy, stop training if too high
             #                 since it means the new policy is too different from the old one
-            kl_div = torch.distributions.kl.kl_divergence(dists, old_dists).mean().item()
+            kl_div = torch.distributions.kl.kl_divergence(old_dists, dists).mean().item()
             wandb.log({"train/kl_div": kl_div, "train/batch": utils.global_batch})
             if kl_div > config.kl_limit:
                 print(f"Early stopping at epoch {epoch} due to KL divergence {round(kl_div, 4)} > {config.kl_limit}")
