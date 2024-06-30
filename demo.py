@@ -8,6 +8,11 @@ import torchvision.transforms as transforms
 
 from ppo import PPO
 
+
+"""Script to launch the demo of a trained agent on a selected game and difficulty level.
+"""
+
+
 supported_games = ["coinrun", "bossfight"]   # TODO: add more games
 supported_difficulties = ["easy", "hard"]
 

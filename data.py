@@ -2,7 +2,22 @@ from torch.utils.data import Dataset
 import numpy as np
 
 class TransitionsDataset(Dataset):
+    """Dataset class for storing transitions. Each transition is a dictionary with the following keys:
+    - 's_t': state at time t
+    - 'a_t': action at time t
+    - 'A_t': advantage at time t
+    - 'v_target_t': value target at time t
+    """
     def __init__(self, transitions, transform=None, normalize_v_targets=False, v_mu=None, v_std=None):
+        """Constructor
+
+        Args:
+            transitions (list[dict]): the list of transitions
+            transform (callable, optional): The transformation to apply to each state. Defaults to None.
+            normalize_v_targets (bool, optional): Wether to normalize value targets. Defaults to False.
+            v_mu (float, optional): Mean of value targets for normalization. Defaults to None.
+            v_std (float, optional): Standard deviation of value targets for normalization. Defaults to None.
+        """
         self.transitions = transitions
         self.transform = transform
         

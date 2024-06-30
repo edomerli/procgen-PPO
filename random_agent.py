@@ -2,9 +2,12 @@ import gym
 import argparse
 import numpy as np
 
+
+"""Script to launch a random agent on a selected game and difficulty level and compute the average cumulative reward."""
+
+
 supported_games = ["coinrun"]   # TODO: add more games
 supported_difficulties = ["easy", "hard"]
-
 
 # parse arguments
 parser = argparse.ArgumentParser("Script to launch a random agent on a selected game and difficulty level and compute the average cumulative reward")

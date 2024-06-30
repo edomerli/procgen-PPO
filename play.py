@@ -14,6 +14,17 @@ from data import TransitionsDataset
 frame_to_tensor = transforms.Compose([transforms.ToPILImage(), transforms.ToTensor()])
 
 def compute_advantages(values, rewards, gamma, lambda_):
+    """Compute advantages using Generalized Advantage Estimation (GAE).
+
+    Args:
+        values (list[float]): the list of value estimates for each state
+        rewards (list[float]): the list of rewards for each state
+        gamma (float): discount factor
+        lambda_ (float): GAE parameter
+
+    Returns:
+        list[float]: the list of advantages for each state
+    """
     assert len(values) >= 2, "Values should have at least 2 elements."
     assert len(values) == len(rewards) + 1, "Values and rewards should have the same length, with values having one more element."
     # GAE estimator
@@ -28,6 +39,20 @@ def compute_advantages(values, rewards, gamma, lambda_):
     return advantages
 
 def compute_value_targets(advantages, values, rewards, config):
+    """Compute value targets for training the value network.
+
+    Args:
+        advantages (list[float]): the list of advantages for each state
+        values (list[float]): the list of value estimates for each state
+        rewards (list[float]): the list of rewards for each state
+        config (dict): the configuration dictionary
+
+    Raises:
+        ValueError: if the value target type is not in ["TD-lambda", "MC"]
+
+    Returns:
+        list[float]: the list of value targets for each state
+    """
     value_targets = []
     if config.v_target == "TD-lambda":
         for t in range(len(advantages)):
@@ -43,6 +68,18 @@ def compute_value_targets(advantages, values, rewards, config):
 
 
 def play_and_train(env, env_test, policy, policy_old, optimizer_policy, optimizer_value, device, config, **kwargs):  
+    """Play the game to generate transitions and train the policy on those. Interleaves also testing of the policy.
+
+    Args:
+        env (gym.Env): the training environment
+        env_test (gym.Env): the testing environment
+        policy (PPO): the policy to train
+        policy_old (PPO): a copy of the policy to use for training
+        optimizer_policy (torch.optim.Optimizer): optimizer for the policy network
+        optimizer_value (torch.optim.Optimizer): optimizer for the value network
+        device (torch.device): the device to run the computations on
+        config (dict): the configuration dictionary
+    """
 
     for iteration in range(config.num_iterations):
         print(f"===============Iteration {iteration+1}===============")
@@ -59,6 +96,7 @@ def play_and_train(env, env_test, policy, policy_old, optimizer_policy, optimize
 
         state = torch.concatenate(list(state_deque), axis=0)
 
+        # initialize trajectory
         trajectory = {
             'states': [state],
             'actions': [],
@@ -105,6 +143,7 @@ def play_and_train(env, env_test, policy, policy_old, optimizer_policy, optimize
                     value = policy.value(state)
                     trajectory['values'].append(value)
                 
+                # compute advantages and value targets
                 advantages = compute_advantages(trajectory['values'], trajectory['rewards'], config.gamma, config.lambda_)
 
                 value_targets = compute_value_targets(advantages, trajectory['values'], trajectory['rewards'], config)
@@ -128,8 +167,8 @@ def play_and_train(env, env_test, policy, policy_old, optimizer_policy, optimize
                             "play/episode_length": len(trajectory['states'])-1,
                             "play/step": utils.global_step})
                 
+                # if iteration is not over, reset env and trajectory
                 if step < config.iteration_timesteps - 1:
-                    # reset env and trajectory
                     obs, _ = env.reset()
 
                     state_deque = deque()
@@ -144,9 +183,9 @@ def play_and_train(env, env_test, policy, policy_old, optimizer_policy, optimize
                         'rewards': [],
                         'values': [],
                     }
-
-
         # end of play loop
+
+        # create dataset and dataloader for training 
         if config.normalize_v_targets:
             dataset = TransitionsDataset(transitions, normalize_v_targets=True, v_mu=policy.value_mean, v_std=policy.value_std)
         else:
@@ -171,6 +210,14 @@ def play_and_train(env, env_test, policy, policy_old, optimizer_policy, optimize
 
 
 def test(env_test, policy, device, config):
+    """Test the policy on the test environment.
+
+    Args:
+        env_test (gym.Env): the testing environment
+        policy (PPO): the policy to test
+        device (torch.device): the device to run the computations on
+        config (dict): the configuration dictionary
+    """
     obs, _ = env_test.reset()
 
     # stack frames together to introduce temporal information
@@ -182,6 +229,7 @@ def test(env_test, policy, device, config):
     policy.eval()
     assert not policy.policy_net.training and not policy.value_net.training, "Policy should be in evaluation mode here"
     
+    # reset global step to avoid influencing the training loop step count
     utils.global_step -= config.iteration_timesteps
     episode_steps = 0
     cum_reward = 0
