@@ -21,8 +21,9 @@ supported_difficulties = ["easy", "hard"]
 parser = argparse.ArgumentParser("Script to launch the demo of a trained agent on a selected game and difficulty level")
 game_arg = parser.add_argument("--game", type=str, help=f"Game to play. Supported games are: {supported_games}")
 diff_arg = parser.add_argument("--difficulty", type=str, help=f"Difficulty level of the game. Possible choices are: {supported_difficulties}")
+parser.add_argument('--stack_size', default=4, type=int, help=f"Number of frames to stack together. Default is 4.")
 parser.add_argument('--batch_norm', default=False, type=lambda x: (str(x).lower() == 'true'), help=f"Whether to use batch normalization in the network or not. Default is False.")
-parser.add_argument('--norm_v_targets', default=False, type=lambda x: (str(x).lower() == 'true'), help=f"Whether to normalize the value targets. Default is False.")
+parser.add_argument('--normalize_v_targets', default=True, type=lambda x: (str(x).lower() == 'true'), help=f"Whether to normalize the value targets. Default is True.")
 
 
 args = parser.parse_args()
@@ -69,12 +70,12 @@ env = gym.make(
 
 # create the agent and load the model
 class Config:
-    def __init__(self, batch_norm, normalize_v_targets):
-        self.stack_size = 2
+    def __init__(self, stack_size, batch_norm, normalize_v_targets):
+        self.stack_size = stack_size
         self.batch_norm = batch_norm
         self.normalize_v_targets = normalize_v_targets
 
-config = Config(args.batch_norm, args.normalize_v_targets)
+config = Config(args.stack_size, args.batch_norm, args.normalize_v_targets)
 policy = PPO(env, config)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

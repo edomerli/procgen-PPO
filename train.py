@@ -43,6 +43,10 @@ def train(policy, policy_old, train_dataloader, optimizer_policy, optimizer_valu
             # but avoids overflows and division by (potentially if underflown) zero, breaking loss function
             ratios = torch.exp(log_probs - old_log_probs)
 
+            with torch.no_grad():
+                # KL divergence between old and new policy for early stopping
+                kl_div = ((ratios - 1) - (log_probs - old_log_probs)).mean().item()
+
             # clipped surrogate loss
             l_clips = -torch.min(ratios * advantages, torch.clip(ratios, 1-config.eps_clip, 1+config.eps_clip) * advantages)
             loss_pi = torch.mean(l_clips)
@@ -76,11 +80,7 @@ def train(policy, policy_old, train_dataloader, optimizer_policy, optimizer_valu
         if scheduler_value is not None:
             scheduler_value.step()
 
-        with torch.no_grad():
-            # Early stopping: KL divergence between old and new policy, stop training if too high
-            #                 since it means the new policy is too different from the old one
-            kl_div = torch.distributions.kl.kl_divergence(old_dists, dists).mean().item()
-            wandb.log({"train/kl_div": kl_div, "train/batch": utils.global_batch})
-            if kl_div > config.kl_limit:
-                print(f"Early stopping at epoch {epoch} due to KL divergence {round(kl_div, 4)} > {config.kl_limit}")
-                break
+        wandb.log({"train/kl_div": kl_div, "train/batch": utils.global_batch})
+        if kl_div > config.kl_limit:
+            print(f"Early stopping at epoch {epoch} due to KL divergence {round(kl_div, 4)} > {config.kl_limit}")
+            break

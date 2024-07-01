@@ -25,7 +25,7 @@ CONFIG = {
     "seed": 6,
     "difficulty": DIFFICULTY,
     "backgrounds": False,
-    "stack_size": 2,
+    "stack_size": 4,
 
     # Timesteps and iterations
     "tot_timesteps": TOT_TIMESTEPS,
@@ -37,23 +37,23 @@ CONFIG = {
 
     # Training params
     "epochs": 3,
-    "batch_size": 128,
+    "batch_size": 64,
     "lr_policy_network": 5e-4,
     "lr_value_network": 5e-4,
-    "kl_limit": 0.03,
+    "kl_limit": 0.02,
 
     # PPO params
     "gamma": 0.999,
     "lambda_": 0.95,
     "eps_clip": 0.2,
-    "entropy_bonus": 0.01,
+    "entropy_bonus": 1e-5,
     "v_target": "TD-lambda",  # "TD-lambda" (for advantage + value) or "MC" (for cumulative reward)
-    "normalize_v_targets": False,
+    "normalize_v_targets": True,
 
     # Logging
     "log_frequency": 10,
     "log_video": False,
-    "episode_video_frequency": 100,
+    "episode_video_frequency": 10,
 }
 
 

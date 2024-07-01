@@ -35,7 +35,7 @@ class ImpalaNetwork(torch.nn.Module):
         self.res_blocks1 = nn.ModuleList()
         self.res_blocks2 = nn.ModuleList()
 
-        hidden_channels = [32, 64, 64]
+        hidden_channels = [16, 32, 32]
 
         for out_channels in hidden_channels:
 
@@ -138,10 +138,6 @@ class PPO:
     def actions_dist_and_v(self, state):
         dist = self.policy_net(state)
         value = self.value_net(state)
-
-        if self.normalize_v_targets:
-            # denormalize value
-            value = value * max(self.value_std, 1e-6) + self.value_mean
 
         return dist, value
       
