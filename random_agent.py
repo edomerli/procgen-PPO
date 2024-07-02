@@ -6,7 +6,7 @@ import numpy as np
 """Script to launch a random agent on a selected game and difficulty level and compute the average cumulative reward."""
 
 
-supported_games = ["coinrun", "bossfight"]   # TODO: add more games
+supported_games = ["coinrun", "bossfight", "miner", "climber"]
 supported_difficulties = ["easy", "hard"]
 
 # parse arguments

@@ -13,7 +13,7 @@ from ppo import PPO
 """
 
 
-supported_games = ["coinrun", "bossfight"]   # TODO: add more games
+supported_games = ["coinrun", "bossfight", "miner", "climber"]
 supported_difficulties = ["easy", "hard"]
 
 
